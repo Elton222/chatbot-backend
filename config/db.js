@@ -9,10 +9,7 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false,
   },
-  // force IPv4 by setting this to false:
-  // this disables DNS lookup for IPv6 addresses
-  // and forces IPv4 connection attempts
-  family: 4,
+
 });
 
 module.exports = pool;
