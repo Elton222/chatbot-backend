@@ -7,13 +7,14 @@ dotenv.config();
 const app = express();
 const salesRoutes = require('./routes/salesRoutes');
 const chatbotRoutes = require('./routes/chatbotRoutes');
+const adminRoutes = require('./routes/adminRoutes'); // your admin user management route
 
 
 const authRoutes = require('./routes/authRoutes');
 const db = require('./config/db');
 app.use(express.json());
 
-
+app.use('/admin', adminRoutes); 
 app.use('/reports', express.static(path.join(__dirname, 'reports')));
 
 app.use('/uploads', express.static('uploads'));

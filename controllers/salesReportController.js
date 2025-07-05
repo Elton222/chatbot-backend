@@ -4,34 +4,36 @@ const fs = require('fs');
 
 exports.generateReport = async (req, res) => {
   try {
-    const userId = req.params.userId; // get user ID from route param or JWT auth
+    const userId = req.params.userId;
     const { report_month } = req.body;
 
-    // 1. Calculate total sales for the month for the user (dummy example)
-    // Replace with your actual sales table query
-    const [salesResult] = await pool.query(
-      `SELECT SUM(amount) as total_sales FROM sales WHERE user_id = ? AND DATE_FORMAT(sale_date, '%Y-%m') = ?`,
+    // Query total sales for the user in the specified month (PostgreSQL uses TO_CHAR for date formatting)
+    const salesResult = await pool.query(
+      `SELECT SUM(amount) as total_sales 
+       FROM sales 
+       WHERE user_id = $1 
+         AND TO_CHAR(sale_date, 'YYYY-MM') = $2`,
       [userId, report_month]
     );
 
-    const totalSales = salesResult[0].total_sales || 0;
+    const totalSales = salesResult.rows[0].total_sales || 0;
 
-    // 2. Create a simple report file (CSV or TXT)
     const fileName = `sales_report_${userId}_${report_month}.txt`;
-    const filePath = path.join(__dirname, 'reports', fileName);
+    const reportsDir = path.join(__dirname, 'reports');
+    const filePath = path.join(reportsDir, fileName);
 
-    const reportContent = `Sales Report for ${report_month}\nTotal Sales: $${totalSales.toFixed(2)}`;
-    
-    // Make sure reports folder exists
-    if (!fs.existsSync(path.join(__dirname, 'reports'))) {
-      fs.mkdirSync(path.join(__dirname, 'reports'));
+    const reportContent = `Sales Report for ${report_month}\nTotal Sales: $${Number(totalSales).toFixed(2)}`;
+
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir);
     }
-    
+
     fs.writeFileSync(filePath, reportContent);
 
-    // 3. Insert record in sales_reports table
+    // Insert the report record with RETURNING id if you want
     await pool.query(
-      `INSERT INTO sales_reports (user_id, report_month, total_sales, file_url) VALUES (?, ?, ?, ?)`,
+      `INSERT INTO sales_reports (user_id, report_month, total_sales, file_url) 
+       VALUES ($1, $2, $3, $4)`,
       [userId, report_month, totalSales, `/reports/${fileName}`]
     );
 
@@ -45,11 +47,11 @@ exports.generateReport = async (req, res) => {
 exports.getReports = async (req, res) => {
   try {
     const userId = req.params.userId;
-    const [reports] = await pool.query(
-      `SELECT * FROM sales_reports WHERE user_id = ? ORDER BY created_at DESC`,
+    const reportsResult = await pool.query(
+      `SELECT * FROM sales_reports WHERE user_id = $1 ORDER BY created_at DESC`,
       [userId]
     );
-    res.json(reports);
+    res.json(reportsResult.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error fetching reports' });

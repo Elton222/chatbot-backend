@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const db = require('../config/db'); // This should export pg Pool instance
 const { getAIResponse } = require('../ai/chatbotLogic');
 
 exports.handleUserMessage = async (req, res) => {
@@ -9,15 +9,16 @@ exports.handleUserMessage = async (req, res) => {
     const aiResponse = await getAIResponse(message);
 
     // Save message and response
-    db.query(
-      'INSERT INTO messages (user_id, message, response, created_at) VALUES (?, ?, ?, NOW())',
-      [userId, message, aiResponse],
-      (err) => {
-        if (err) throw err;
-        res.json({ reply: aiResponse });
-      }
-    );
+    const queryText = `
+      INSERT INTO messages (user_id, message, response, created_at)
+      VALUES ($1, $2, $3, NOW())
+    `;
+
+    await db.query(queryText, [userId, message, aiResponse]);
+
+    res.json({ reply: aiResponse });
   } catch (err) {
+    console.error('Error saving message:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
